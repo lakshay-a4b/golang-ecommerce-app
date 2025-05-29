@@ -1,0 +1,49 @@
+package utils
+
+import (
+	"errors"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+var jwtSecret = []byte("your_jwt_secret") // Match your JS secret
+
+// Claims struct for custom payload
+type Claims struct {
+	UserId string `json:"userId"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+// GenerateToken generates a JWT token with a 1-hour expiry
+func GenerateToken(userId, role string) (string, error) {
+	claims := &Claims{
+		UserId: userId,
+		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+// VerifyToken verifies and parses a JWT token
+func VerifyToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, errors.New("invalid or expired token")
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return nil, errors.New("could not parse claims")
+	}
+
+	return claims, nil
+}
