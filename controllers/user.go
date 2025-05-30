@@ -24,7 +24,6 @@ func (uc *UserController) SignupUser(w http.ResponseWriter, r *http.Request) {
 		UserId   string `json:"userId"`
 		Password string `json:"password"`
 		Email    string `json:"email"`
-		Role     string `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -36,11 +35,11 @@ func (uc *UserController) SignupUser(w http.ResponseWriter, r *http.Request) {
 		UserId:    body.UserId,
 		Password:  body.Password,
 		Email:     body.Email,
-		Role:      body.Role,
+		Role:      "user",
 		CreatedAt: time.Now(),
 	}
-	if body.UserId == "" || body.Password == "" || body.Email == "" || body.Role == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "userId, password, email, and role are required")
+	if body.UserId == "" || body.Password == "" || body.Email == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "userId, password and email are required")
 		return
 	}
 
@@ -117,4 +116,54 @@ func (uc *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, map[string]string{"message": "User deleted successfully"})
+}
+
+func (uc *UserController) DeleteUserAllAccess(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId := vars["userId"]
+
+	if userId == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "userId is required")
+		return
+	}
+
+	if err := uc.userService.DeleteUserServiceAllAccess(r.Context(), userId); err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, map[string]string{"message": "User deleted successfully"})
+}
+
+// updateUserRole updates the role of a user
+func (uc *UserController) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId := vars["userId"]
+
+	if userId == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "userId is required")
+		return
+	}
+
+	var body struct {
+		Role string `json:"role"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if body.Role == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "role is required")
+		return
+	}
+
+	result, err := uc.userService.UpdateUserRoleService(r.Context(), userId, body.Role)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, result)
 }

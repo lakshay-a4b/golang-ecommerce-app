@@ -44,6 +44,19 @@ func VerifyToken(tokenString string) (*Claims, error) {
 	if !ok {
 		return nil, errors.New("could not parse claims")
 	}
-
 	return claims, nil
+}
+
+func VerifyTokenWithRoles(tokenString string, allowedRoles []string) (*Claims, error) {
+	claims, err := VerifyToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, role := range allowedRoles {
+		if claims.Role == role {
+			return claims, nil
+		}
+	}
+	return nil, errors.New("user does not have required privileges")
 }

@@ -147,6 +147,7 @@ func (r *UserRepository) DeleteUser(ctx context.Context, userId string) (*models
 			&deletedUser.Email,
 			&deletedUser.Password,
 			&deletedUser.Role,
+			&deletedUser.CreatedAt,
 		)
 
 	if err != nil {
@@ -158,4 +159,34 @@ func (r *UserRepository) DeleteUser(ctx context.Context, userId string) (*models
 	}
 
 	return &deletedUser, nil
+}
+
+// UpdateUserRole updates the role of a user
+func (r *UserRepository) UpdateUserRole(ctx context.Context, userId, role string) (*models.User, error) {
+	query := `
+		UPDATE users
+		SET role = $1, "createdAt" = NOW()
+		WHERE "userId" = $2
+		RETURNING "userId", email, password, role, "createdAt"
+	`
+
+	var updatedUser models.User
+	err := r.pool.QueryRow(ctx, query, role, userId).
+		Scan(
+			&updatedUser.UserId,
+			&updatedUser.Email,
+			&updatedUser.Password,
+			&updatedUser.Role,
+			&updatedUser.CreatedAt,
+		)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		log.Printf("Error updating user role: %v", err)
+		return nil, fmt.Errorf("failed to update user role: %w", err)
+	}
+
+	return &updatedUser, nil
 }

@@ -105,6 +105,24 @@ func (u *UserService) Login(ctx context.Context, userId, password string) (strin
 		return "", err
 	}
 
+	event := models.UserEvent{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Name:      user.UserId,
+		Email:     user.Email,
+		Role:      user.Role,
+		Action:    "login",
+		UserId:    user.UserId,
+	}
+	eventMap := map[string]interface{}{
+		"Timestamp": event.Timestamp,
+		"Name":      event.Name,
+		"Email":     event.Email,
+		"Role":      event.Role,
+		"Action":    event.Action,
+		"userId":    event.UserId,
+	}
+	go utils.LogEventToProducer("User Login", user.UserId, eventMap)
+
 	return token, nil
 }
 
@@ -117,6 +135,59 @@ func (u *UserService) UpdateUserService(ctx context.Context, userId string, upda
 		}
 	}
 
+	// check that updating user role is user only
+	if user.Role != "user" {
+		return nil, &ServiceError{
+			Status:  403,
+			Message: "Unauthorized to update user",
+		}
+	}
+
+	if email, ok := updates["email"]; ok {
+		if emailStr, ok := email.(string); ok && emailStr != "" {
+			existingUser, err := u.userRepo.FindByEmail(ctx, emailStr)
+			if err != nil {
+				log.Println("Error checking existing email:", err)
+				return nil, err
+			}
+			if existingUser != nil && existingUser.UserId != userId {
+				return nil, &ServiceError{
+					Status:  400,
+					Message: "Email already in use",
+				}
+			}
+			updates["email"] = emailStr
+		} else {
+			return nil, &ServiceError{
+				Status:  400,
+				Message: "Invalid email format",
+			}
+		}
+	}
+	if password, ok := updates["password"]; ok {
+		if passwordStr, ok := password.(string); ok && passwordStr != "" {
+			hashedPassword, err := utils.HashPassword(passwordStr)
+			if err != nil {
+				log.Println("Hashing error:", err)
+				return nil, err
+			}
+			updates["password"] = hashedPassword
+		} else {
+			return nil, &ServiceError{
+				Status:  400,
+				Message: "Invalid password format",
+			}
+		}
+	}
+
+	if len(updates) == 0 {
+		return nil, &ServiceError{
+			Status:  400,
+			Message: "No valid fields to update",
+		}
+	}
+
+	// Update user in the repository
 	updatedUser, err := u.userRepo.UpdateUser(ctx, userId, updates)
 	if err != nil {
 		log.Println("Error updating user:", err)
@@ -134,6 +205,13 @@ func (u *UserService) DeleteUserService(ctx context.Context, userId string) erro
 			Message: "User not found",
 		}
 	}
+	// check that deleting user is user only
+	if user.Role != "user" {
+		return &ServiceError{
+			Status:  403,
+			Message: "Unauthorized to delete user",
+		}
+	}
 
 	if _, err := u.userRepo.DeleteUser(ctx, userId); err != nil {
 		log.Println("Error deleting user:", err)
@@ -141,4 +219,53 @@ func (u *UserService) DeleteUserService(ctx context.Context, userId string) erro
 	}
 
 	return nil
+}
+
+func (u *UserService) DeleteUserServiceAllAccess(ctx context.Context, userId string) error {
+	user, err := u.userRepo.FindByuserId(ctx, userId)
+	if err != nil || user == nil {
+		return &ServiceError{
+			Status:  404,
+			Message: "User not found",
+		}
+	}
+	// check can't delete superadmin user
+	if user.Role == "superadmin" {
+		return &ServiceError{
+			Status:  403,
+			Message: "Unauthorized to delete user",
+		}
+	}
+
+	if _, err := u.userRepo.DeleteUser(ctx, userId); err != nil {
+		log.Println("Error deleting user:", err)
+		return err
+	}
+
+	return nil
+}
+
+func (u *UserService) UpdateUserRoleService(ctx context.Context, userId, role string) (*models.User, error) {
+	user, err := u.userRepo.FindByuserId(ctx, userId)
+	if err != nil || user == nil {
+		return nil, &ServiceError{
+			Status:  404,
+			Message: "User not found",
+		}
+	}
+
+	if role != "admin" && role != "user" {
+		return nil, &ServiceError{
+			Status:  400,
+			Message: "Invalid role",
+		}
+	}
+
+	updatedUser, err := u.userRepo.UpdateUserRole(ctx, userId, role)
+	if err != nil {
+		log.Println("Error updating user role:", err)
+		return nil, err
+	}
+
+	return updatedUser, nil
 }
