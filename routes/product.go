@@ -5,6 +5,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/your-username/golang-ecommerce-app/config"
 	"github.com/your-username/golang-ecommerce-app/controllers"
+	"github.com/your-username/golang-ecommerce-app/middlewares"
 	"github.com/your-username/golang-ecommerce-app/repository"
 	"github.com/your-username/golang-ecommerce-app/services"
 	"github.com/your-username/golang-ecommerce-app/utils"
@@ -22,7 +23,11 @@ func RegisterProductRoutes(r *mux.Router, pool *pgxpool.Pool) {
 
 	productRouter.HandleFunc("/", productController.GetAllProducts).Methods("GET")
 	productRouter.HandleFunc("/{id}", productController.GetProductById).Methods("GET")
-	productRouter.HandleFunc("/create", productController.CreateProduct).Methods("POST")
-	productRouter.HandleFunc("/update/{id}", productController.UpdateProduct).Methods("PUT")
-	productRouter.HandleFunc("/delete/{id}", productController.DeleteProduct).Methods("DELETE")
+
+	productAdminRouter := r.PathPrefix("/admin/products").Subrouter()
+	productAdminRouter.Use(middlewares.AuthenticateAdminToken) 
+
+	productAdminRouter.HandleFunc("/create", productController.CreateProduct).Methods("POST")
+	productAdminRouter.HandleFunc("/update/{id}", productController.UpdateProduct).Methods("PUT")
+	productAdminRouter.HandleFunc("/delete/{id}", productController.DeleteProduct).Methods("DELETE")
 }

@@ -22,6 +22,9 @@ func RegisterOrderRoutes(r *mux.Router, pool *pgxpool.Pool) {
 
 	orderRouter.HandleFunc("/create", orderController.CreateOrder).Methods("POST")
 	orderRouter.HandleFunc("/", orderController.GetUserOrders).Methods("GET")
-	orderRouter.HandleFunc("/update/{id}", orderController.UpdateUserOrder).Methods("PUT")
+
+	adminOrderRouter := r.PathPrefix("/admin/orders").Subrouter()
+	adminOrderRouter.Use(middlewares.AuthenticateAdminToken)
+	adminOrderRouter.HandleFunc("/update/{id}", orderController.UpdateUserOrder).Methods("PUT")
 
 }

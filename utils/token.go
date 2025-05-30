@@ -3,11 +3,12 @@ package utils
 import (
 	"errors"
 	"time"
+	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("your_jwt_secret") // Match your JS secret
+var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 // Claims struct for custom payload
 type Claims struct {
@@ -22,7 +23,7 @@ func GenerateToken(userId, role string) (string, error) {
 		UserId: userId,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(6 * time.Hour)),
 		},
 	}
 

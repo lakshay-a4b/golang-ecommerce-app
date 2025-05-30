@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/your-username/golang-ecommerce-app/services"
+	"github.com/gorilla/mux"
 	"github.com/your-username/golang-ecommerce-app/middlewares"
+	"github.com/your-username/golang-ecommerce-app/services"
 )
 
 type OrderController struct {
@@ -54,14 +55,24 @@ func (oc *OrderController) GetUserOrders(w http.ResponseWriter, r *http.Request)
 }
 
 func (oc *OrderController) UpdateUserOrder(w http.ResponseWriter, r *http.Request) {
-	userId, ok := middlewares.GetUserFromContext(r.Context())
-	if !ok {
-		respondWithError(w, http.StatusUnauthorized, "User authentication required")
+
+	vars := mux.Vars(r)
+	orderId := vars["id"]
+	if orderId == "" {
+		respondWithError(w, http.StatusBadRequest, "Order ID is required")
+		return
+	}
+	status := r.URL.Query().Get("status")
+	if status == "" {
+		respondWithError(w, http.StatusBadRequest, "Status is required")
+		return
+	}
+	userId := r.URL.Query().Get("userId")
+	if userId == "" {
+		respondWithError(w, http.StatusBadRequest, "User ID is required")
 		return
 	}
 
-	orderId := r.URL.Query().Get("id")
-	status := r.URL.Query().Get("status")
 	if orderId == "" {
 		respondWithError(w, http.StatusBadRequest, "Order ID is required")
 		return
