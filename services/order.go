@@ -72,17 +72,17 @@ func (s *OrderService) CreateOrder(ctx context.Context, userId string) (*models.
 		totalAmount += product.Price * float64(item.Quantity)
 	}
 
-	// tx, err := s.orderRepo.BeginTx(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	// }
-	// defer func() {
-	// 	if err != nil {
-	// 		if rbErr := tx.Rollback(ctx); rbErr != nil {
-	// 			log.Printf("Failed to rollback transaction: %v", rbErr)
-	// 		}
-	// 	}
-	// }()
+	tx, err := s.orderRepo.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				log.Printf("Failed to rollback transaction: %v", rbErr)
+			}
+		}
+	}()
 
 	paymentResult, err := s.paymentRepo.ProcessPayment(ctx, &models.PaymentRequest{
 		UserID: userId,
@@ -116,9 +116,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, userId string) (*models.
 		return nil, fmt.Errorf("failed to clear cart: %w", err)
 	}
 
-	// if err := tx.Commit(ctx); err != nil {
-	// 	return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	// }
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
 
 	createdOrder.ProductInfo, err = json.Marshal(items)
 	if err != nil {

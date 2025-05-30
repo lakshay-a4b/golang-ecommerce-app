@@ -163,7 +163,7 @@ func (r *ProductRepository) CreateProduct(ctx context.Context, product models.Pr
 func (r *ProductRepository) UpdateProduct(ctx context.Context, id int, product models.Product) (*models.Product, error) {
 	query := `
 		UPDATE products
-		SET name = $1, description = $2, image = $3, price = $4, "updatedAt" = NOW()
+		SET name = $1, description = $2, image = $3, price = $4, "createdAt" = NOW()
 		WHERE "productId" = $5
 		RETURNING "productId", name, description, image, price, "createdAt"
 	`
